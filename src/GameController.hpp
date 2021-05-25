@@ -49,9 +49,11 @@ private:
 	void update();
 	void updateFinalSceneAndReset();
 	bool doMatch();
+	bool doPreMatch();
 	void animateMovement();
 	void animateDelete();
 	void reArrange();
+	void shuffle();
 	bool computeScore();
 	void updateObjectiveCounts();
 	void updateMousePosition();
@@ -85,6 +87,7 @@ private:
 	bool m_started = false;
 	bool m_isSwapped = false;
 	bool m_explode = false;
+	bool m_shuffle = false;
 	int m_moveCount;
 	int m_rows;
 	int m_columns;

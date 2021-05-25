@@ -491,6 +491,14 @@ void GameController::update()
 	animateMovement();
 	
 	bool isMatch = doMatch();
+	if (!isMatch)
+	{
+		bool isPreMatch = doPreMatch();
+		if (!isPreMatch)
+		{
+			m_shuffle = true;
+		}
+	}
 	
 
 	if (m_state != State::MOVING && m_isSwapped)
@@ -545,6 +553,11 @@ bool GameController::isObjectiveCompleted()
 bool GameController::doMatch()
 {
 	return m_matcher.match();
+}
+
+bool GameController::doPreMatch()
+{
+	return m_matcher.preMatch3();
 }
 
 bool GameController::computeScore()
@@ -644,77 +657,98 @@ void GameController::reArrange()
 {
 	if (m_state != State::MOVING)
 	{
-		for (int i = m_rows - 1; i >= 0; --i)
+		if (m_shuffle == true)
 		{
-			for (int j = 0; j < m_columns; ++j)
+			m_shuffle = false;
+			shuffle();
+		}
+		else
+		{
+			for (int i = m_rows - 1; i >= 0; --i)
 			{
-				if ( m_grid[i][j].getMatch() && ( m_grid[i][j].getBombType() <= NB || m_grid[i][j].getExplode() ))
+				for (int j = 0; j < m_columns; ++j)
 				{
-					for (int n = i; n >= 0; n--)
+					if (m_grid[i][j].getMatch() && (m_grid[i][j].getBombType() <= NB || m_grid[i][j].getExplode()))
 					{
-						if ( !m_grid[n][j].getMatch() || (m_grid[n][j].getBombType() > NB && !m_grid[n][j].getExplode() ))
+						for (int n = i; n >= 0; n--)
 						{
-							swapGems({ j, n }, { j, i });
-							break;
+							if (!m_grid[n][j].getMatch() || (m_grid[n][j].getBombType() > NB && !m_grid[n][j].getExplode()))
+							{
+								swapGems({ j, n }, { j, i });
+								break;
+							}
 						}
 					}
 				}
 			}
-		}
 
 
-		for (int j = 0; j < m_columns; ++j)
-		{
-			for (int i = m_rows - 1, n = 1; i >= 0; i--)
+			for (int j = 0; j < m_columns; ++j)
 			{
-				if (m_grid[i][j].getMatch() )
+				for (int i = m_rows - 1, n = 1; i >= 0; i--)
 				{
-					int gridIndex = (i & 1) ? (j & 1) : !(j & 1);
-					int tileWidth = m_gridTextures[gridIndex].getSize().x;
-					int tileHeight = m_gridTextures[gridIndex].getSize().y;
-					int spriteType = rand() % m_gemsSize;
-					Sprite sprite;
-
-					BombType bombType = m_grid[i][j].getBombType();
-					bool explode = m_grid[i][j].getExplode();
-					if (bombType > NB && !explode)
+					if (m_grid[i][j].getMatch())
 					{
+						int gridIndex = (i & 1) ? (j & 1) : !(j & 1);
+						int tileWidth = m_gridTextures[gridIndex].getSize().x;
+						int tileHeight = m_gridTextures[gridIndex].getSize().y;
+						int spriteType = rand() % m_gemsSize;
+						Sprite sprite;
+
+						BombType bombType = m_grid[i][j].getBombType();
+						bool explode = m_grid[i][j].getExplode();
+						if (bombType > NB && !explode)
+						{
+							m_grid[i][j].setMatch(false);
+							m_grid[i][j].setType(BOMB_MATCH_TYPE);
+							int textureIndex = getBombTextureIndex(bombType);
+							sprite.setTexture(m_bombTextures[textureIndex]);
+						}
+						else
+						{
+							m_grid[i][j].setType(spriteType);
+							sprite.setTexture(m_gemTexturesVec[spriteType]);
+							m_grid[i][j].setBombType(NB);
+						}
+
+
+						m_grid[i][j].setSprite(sprite);
+
+						Vector2i spriteOffset = getSpriteOffset(m_grid[i][j].getSprite(), tileWidth, tileHeight);
+						m_grid[i][j].setOffset(spriteOffset);
+						m_grid[i][j].alpha = 255;
+						if (m_grid[i][j].getBombType() <= NB)
+						{
+							Vector2i coords = m_grid[i][j].getCoords();
+							coords.y = -static_cast<int> (m_gridTextures[gridIndex].getSize().y) * n++;
+							m_grid[i][j].setCoords({ coords.x, coords.y });
+						}
+
+						m_grid[i][j].setCounted(false);
 						m_grid[i][j].setMatch(false);
-						m_grid[i][j].setType(BOMB_MATCH_TYPE);
-						int textureIndex = getBombTextureIndex(bombType);
-						sprite.setTexture(m_bombTextures[textureIndex]);
+						m_grid[i][j].setCounted(false);
+						m_grid[i][j].setExplode(false);
+
 					}
-					else
-					{
-						m_grid[i][j].setType(spriteType);
-						sprite.setTexture(m_gemTexturesVec[spriteType]);
-						m_grid[i][j].setBombType(NB);
-					}
-
-
-					m_grid[i][j].setSprite(sprite); 
-
-					Vector2i spriteOffset = getSpriteOffset(m_grid[i][j].getSprite(), tileWidth, tileHeight);
-					m_grid[i][j].setOffset(spriteOffset);
-					m_grid[i][j].alpha = 255;
-					if (m_grid[i][j].getBombType() <= NB)
-					{
-						Vector2i coords = m_grid[i][j].getCoords();
-						coords.y = -static_cast<int> (m_gridTextures[gridIndex].getSize().y) * n++;
-						m_grid[i][j].setCoords({ coords.x, coords.y });
-					}
-
-					m_grid[i][j].setCounted(false);
-					m_grid[i][j].setMatch(false);
-					m_grid[i][j].setCounted(false);
-					m_grid[i][j].setExplode(false);
-
 				}
 			}
-		}
+		}		
 		if (m_state == State::DOUBLE_CLICK)
 		{
 			m_state = State::WAITING;
+		}
+	}
+}
+
+void GameController::shuffle()
+{
+	for (int i = 0; i < m_rows; ++i)
+	{
+		for (int j = 0; j < m_columns; ++j)
+		{
+			int row = rand() % m_rows;
+			int col = rand() % m_columns;
+			swapGems({ j, i }, { col, row });
 		}
 	}
 }

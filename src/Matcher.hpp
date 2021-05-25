@@ -14,7 +14,8 @@ public:
 	void initMatcher(GameController *pController);
 	bool match();
 	bool match3();
-	bool matchCustomPatterns();
+	bool preMatch3();
+	bool matchCustomPatterns(bool isPreMatchPattern = false);
 	BombType getBombTypeFromMatchPattern(const Pattern2D& pattern);
 	void generateMatchPatterns();
 	void generatePreMatchPatterns();
@@ -26,7 +27,7 @@ private:
 	bool patternIsSquare(const Pattern2D & pattern);
 	Grid &m_grid;
 	MatchPatterns m_matchPatterns;
-	MatchPatterns m_preMovePatterns;
+	MatchPatterns m_preMatchPatterns;
 	GameController *m_pGameController;
 };
 

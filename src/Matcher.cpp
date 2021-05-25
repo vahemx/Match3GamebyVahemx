@@ -14,7 +14,7 @@ void Matcher::initMatcher(GameController *pController)
 	m_pGameController = pController;
 	generateMatchPatterns();
 	
-	//generatePreMatchPatterns();
+	generatePreMatchPatterns();
 }
 
 bool Matcher::match()
@@ -23,6 +23,27 @@ bool Matcher::match()
 	bool isMatchPattern = matchCustomPatterns();
 
 	return ( isMatch3 || isMatchPattern);
+}
+
+bool Matcher::preMatch3()
+{
+	bool ret = false;
+	for (int i = 0; i < m_pGameController->m_rows; ++i)
+	{
+		for (int j = 0; j < m_pGameController->m_columns; ++j)
+		{
+			if (m_grid[i][j].getType() == BOMB_MATCH_TYPE)
+			{
+				return true;
+			}
+		}
+	}
+
+	ret = matchCustomPatterns(true);
+
+
+
+	return ret;
 }
 
 bool Matcher::match3()
@@ -90,10 +111,11 @@ bool Matcher::match3()
 	return isMatch;
 }
 
-bool Matcher::matchCustomPatterns()
+bool Matcher::matchCustomPatterns(bool isPreMatchPattern)
 {
 	bool ret = false;
-	for (const auto &item : m_matchPatterns)
+	const MatchPatterns &patterns = isPreMatchPattern ? m_preMatchPatterns : m_matchPatterns;
+	for (const auto &item : patterns)
 	{
 
 		for (int i = 0; i < m_pGameController->m_rows; ++i)
@@ -141,57 +163,66 @@ bool Matcher::matchCustomPatterns()
 
 					if (isMatch)
 					{
-						BombType bombType = getBombTypeFromMatchPattern(item);
-						ret = true;
-						bool isBombSet = false;
-						bool isBombMatch = false;
-						for (size_t m = 0; m < item.size(); ++m)
+						if (isPreMatchPattern == true)
 						{
-							for (size_t n = 0; n < item[m].size(); ++n)
+							return true;
+						}
+						else
+						{
+							BombType bombType = getBombTypeFromMatchPattern(item);
+							ret = true;
+							bool isBombSet = false;
+							bool isBombMatch = false;
+							for (size_t m = 0; m < item.size(); ++m)
 							{
-								if (item[m][n] != 0)
+								for (size_t n = 0; n < item[m].size(); ++n)
 								{
-									Vector2i matchedColRow = { j + static_cast<int> (n), i + static_cast<int> (m) };
-									isBombMatch = (m_grid[matchedColRow.y][matchedColRow.x].getType() == BOMB_MATCH_TYPE);
-									m_grid[i + m][j + n].setMatch(true);
-									
-									if (isBombMatch)
+									if (item[m][n] != 0)
 									{
-										m_grid[i + m][j + n].setExplode(true);
-										m_pGameController->explodeBomb(i + m, j + n);
-									}
-									else
-									{
-										if (m_pGameController->m_isSwapped && !isBombSet)
+										Vector2i matchedColRow = { j + static_cast<int> (n), i + static_cast<int> (m) };
+										isBombMatch = (m_grid[matchedColRow.y][matchedColRow.x].getType() == BOMB_MATCH_TYPE);
+										m_grid[i + m][j + n].setMatch(true);
+
+										if (isBombMatch)
 										{
-											if (matchedColRow == m_pGameController->m_sel1 ||
-												matchedColRow == m_pGameController->m_sel2)
-											{
-												if (!m_grid[i + m][j + n].getCounted())
-												{
-													m_grid[i + m][j + n].setBombType(bombType);
-													isBombSet = true;
-												}
-											}
+											m_grid[i + m][j + n].setExplode(true);
+											m_pGameController->explodeBomb(i + m, j + n);
 										}
 										else
 										{
-											if (!isBombSet && !isPatternElementCounted)
+											if (m_pGameController->m_isSwapped && !isBombSet)
 											{
-												if (!m_grid[i + m][j + n].getCounted())
+												if (matchedColRow == m_pGameController->m_sel1 ||
+													matchedColRow == m_pGameController->m_sel2)
 												{
-													m_grid[i + m][j + n].setBombType(bombType);
-													isBombSet = true;
+													if (!m_grid[i + m][j + n].getCounted())
+													{
+														m_grid[i + m][j + n].setBombType(bombType);
+														isBombSet = true;
+													}
+												}
+											}
+											else
+											{
+												if (!isBombSet && !isPatternElementCounted)
+												{
+													if (!m_grid[i + m][j + n].getCounted())
+													{
+														m_grid[i + m][j + n].setBombType(bombType);
+														isBombSet = true;
+													}
 												}
 											}
 										}
+
+										m_grid[i + m][j + n].setCounted(true);
 									}
-									
-									m_grid[i + m][j + n].setCounted(true);
 								}
 							}
 						}
+
 					}
+					
 				}
 			}
 		}
@@ -220,7 +251,26 @@ void Matcher::generateMatchPatterns()
 ///generate pre match patterns to determine if a player has legal move to make a match. If not, the grid should be shuffled 
 void Matcher::generatePreMatchPatterns()
 {
+	Pattern2D preMatch3 = 
+	{
+		{ NB, NB, NB},
+		{ 0,  0,  0},
+	};
 
+	for (unsigned int i = 0; i < preMatch3[0].size(); ++i)
+	{
+		if (preMatch3[0][i] > 0 && preMatch3[1][i] == 0)
+		{
+			Pattern2D matrix = preMatch3;
+			std::swap(matrix[0][i], matrix[1][i]);
+			m_preMatchPatterns.push_back(matrix);
+			for (int j = 0; j < 3; ++j)
+			{
+				rotateMatrix(matrix);
+				m_preMatchPatterns.push_back(matrix);
+			}
+		}
+	}
 }
 
 void Matcher::rotateMatrix(Pattern2D& matrix)
