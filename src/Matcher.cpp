@@ -251,17 +251,29 @@ void Matcher::generateMatchPatterns()
 ///generate pre match patterns to determine if a player has legal move to make a match. If not, the grid should be shuffled 
 void Matcher::generatePreMatchPatterns()
 {
-	Pattern2D preMatch3 = 
+	Pattern2D preMatch3_pattern = 
 	{
 		{ NB, NB, NB},
 		{ 0,  0,  0},
 	};
 
-	for (unsigned int i = 0; i < preMatch3[0].size(); ++i)
+	Pattern2D preMatch3_line =
 	{
-		if (preMatch3[0][i] > 0 && preMatch3[1][i] == 0)
+		{ NB, 0, NB, NB},
+	};
+
+	m_preMatchPatterns.push_back(preMatch3_line);
+	for (int j = 0; j < 3; ++j)
+	{
+		rotateMatrix(preMatch3_line);
+		m_preMatchPatterns.push_back(preMatch3_line);
+	}
+
+	for (unsigned int i = 0; i < preMatch3_pattern[0].size(); ++i)
+	{
+		if (preMatch3_pattern[0][i] > 0 && preMatch3_pattern[1][i] == 0)
 		{
-			Pattern2D matrix = preMatch3;
+			Pattern2D matrix = preMatch3_pattern;
 			std::swap(matrix[0][i], matrix[1][i]);
 			m_preMatchPatterns.push_back(matrix);
 			for (int j = 0; j < 3; ++j)
