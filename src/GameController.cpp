@@ -20,7 +20,7 @@ void GameController::updateGameStatus(const GameStatus &status) {
 
 void GameController::startGame() {
     _app = new RenderWindow(VideoMode(744, 1080), "Game", Style::Close);
-    _app->setFramerateLimit(100);
+    _app->setFramerateLimit(60);
 
 
     run();
